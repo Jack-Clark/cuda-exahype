@@ -1,12 +1,20 @@
+/* 
+	@author Jack Clark
+
+	Simple program to simulate 1D advection using the finite volume approach, with naive averaging at cell boundaries. 
+	
+	Compile with g++ -O3 advection.c -o advection
+*/
+
 
 #include <fstream>
 #include <sstream>
 #include <math.h>
 
-#define NUM_CELLS_X 20
+#define NUM_CELLS_X 100
 #define X_VELOCITY 1
 #define TIMESTEP 0.1
-#define NUM_TIMESTEPS 20
+#define NUM_TIMESTEPS 500
 #define DELTA_X 1
 #define PLOT_FREQUENCY 1
 
@@ -46,7 +54,7 @@ void printResult(int timestep) {
 void setup() {
 	for(int i=0; i<NUM_CELLS_X; i++) {
 		flux[i] = 0.0;
-		if(i > 0 && i < 4) {
+		if(i > 0 && i < 6) {
 			q[i] = 5.0;
 		} else {
 			q[i] = 0.0;
@@ -62,8 +70,8 @@ void reconstruction() {
 
 void update_cells() {
 	double temp;
-	for(int i=NUM_CELLS_X-1; i>0; i--) {
-		temp = q[i-1] + (TIMESTEP/DELTA_X) * (flux[i] - flux[i+1]);
+	for(int i=0; i<NUM_CELLS_X-1; i++) {
+		temp = q[i] + (TIMESTEP/DELTA_X) * (flux[i] - flux[i+1]);
 		if(temp < 0) {
 			q[i] = 0;
 		} else {
