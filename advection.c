@@ -13,7 +13,7 @@
 
 #define NUM_CELLS_X 100
 #define X_VELOCITY 1
-#define TIMESTEP 0.1
+#define TIMESTEP 0.01
 #define NUM_TIMESTEPS 500
 #define DELTA_X 1
 #define PLOT_FREQUENCY 1
@@ -54,7 +54,7 @@ void printResult(int timestep) {
 void setup() {
 	for(int i=0; i<NUM_CELLS_X; i++) {
 		flux[i] = 0.0;
-		if(i > 0 && i < 6) {
+		if(i > 10 && i < 16) {
 			q[i] = 5.0;
 		} else {
 			q[i] = 0.0;
