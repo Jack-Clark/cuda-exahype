@@ -12,11 +12,14 @@
 #include <math.h>
 
 #define NUM_CELLS_X 100
+#define NUM_CELLS_Y 100
 #define X_VELOCITY 1
-#define TIMESTEP 0.01
-#define NUM_TIMESTEPS 500
+#define Y_VELOCITY 1
+#define TIMESTEP 0.0001
+#define NUM_TIMESTEPS 2000000
 #define DELTA_X 1
-#define PLOT_FREQUENCY 1
+#define DELTA_Y 1
+#define PLOT_FREQUENCY 100
 
 double flux[NUM_CELLS_X];
 double q[NUM_CELLS_X];
@@ -63,8 +66,8 @@ void setup() {
 }
 
 void reconstruction() {
-	for(int i=1; i<NUM_CELLS_X; i++) { // Note that flux is not computed for the boundaries
-		flux[i] = (q[i] + q[i-1]) / 2 * X_VELOCITY;
+	for(int i=1; i<NUM_CELLS_X; i++) { // Note that flux is not computed for the global boundary
+		flux[i] = ((q[i] + q[i-1]) / 2) - (X_VELOCITY/2 * (q[i] - q[i-1]));
 	}
 }
 
@@ -84,13 +87,13 @@ void update_cells() {
 int main() {
 	setup();
 	printCSVFile(0);
-	printResult(0);
+	//printResult(0);
 
 	for(int i=0; i<NUM_TIMESTEPS; i++) {
 		reconstruction();
 		update_cells();
 
-		printResult(i+1);
+		//printResult(i+1);
 
 		if (i%PLOT_FREQUENCY==0) {
       		printCSVFile(i/PLOT_FREQUENCY+1); // Please switch off all IO if you do performance tests.
