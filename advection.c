@@ -10,19 +10,25 @@
 #include <fstream>
 #include <sstream>
 #include <math.h>
+#include <assert.h>
 
-#define NUM_CELLS_X 100
-#define NUM_CELLS_Y 100
-#define X_VELOCITY 1
-#define Y_VELOCITY 1
-#define TIMESTEP 0.0001
+#define NUM_CELLS_X 20
+#define NUM_CELLS_Y 20
+#define TIMESTEP 0.001
 #define NUM_TIMESTEPS 2000000
 #define DELTA_X 1
 #define DELTA_Y 1
 #define PLOT_FREQUENCY 100
 
-double flux[NUM_CELLS_X];
-double q[NUM_CELLS_X];
+double flux_x[NUM_CELLS_X*NUM_CELLS_Y];
+double flux_y[NUM_CELLS_X*NUM_CELLS_Y];
+double q[NUM_CELLS_X*NUM_CELLS_Y];
+double velocities[2];
+double max_velocity;
+
+int getIndex(int row, int col) {
+	return row * NUM_CELLS_X + col;
+}
 
 void printCSVFile(int counter) {
   std::stringstream filename;
@@ -31,11 +37,15 @@ void printCSVFile(int counter) {
 
   out << "x, y, z" << std::endl;
 
-  for (int i=0; i<NUM_CELLS_X; i++) {
-    out << i
-        << ","
-        << q[i]
-        << std::endl;
+  for (int i=0; i<NUM_CELLS_Y; i++) {
+  	for(int j=0; j<NUM_CELLS_X; j++) {
+	    out << i
+	        << ","
+	        << j
+	 	    << ","
+	        << q[i*NUM_CELLS_X+j]
+	        << std::endl;
+	}
   }
 }
 
@@ -43,42 +53,83 @@ void printResult(int timestep) {
 
 	printf("Timestep %d \n", timestep);
 	printf("Q: ");
-	for(int j=0; j<NUM_CELLS_X; j++) {
-		printf("%f ", q[j]);
-	}
+	for (int i=0; i<NUM_CELLS_Y; i++) {
+		printf("\n");
+  		for(int j=0; j<NUM_CELLS_X; j++) {
+  			printf("%f ", q[getIndex(i,j)]);
+  		}
+  	}
 	printf("\n");
-	printf("Flux: ");
-	for(int j=0; j<NUM_CELLS_X; j++) {
-		printf("%f ", flux[j]);
-	}
+	printf("Flux_X: ");
+	for (int i=0; i<NUM_CELLS_Y; i++) {
+		printf("\n");
+  		for(int j=0; j<NUM_CELLS_X; j++) {
+  			printf("%f ", flux_x[getIndex(i,j)]);
+  		}
+  	}
+	printf("\n");
+	printf("Flux_Y: ");
+	for (int i=0; i<NUM_CELLS_Y; i++) {
+		printf("\n");
+  		for(int j=0; j<NUM_CELLS_X; j++) {
+  			printf("%f ", flux_y[getIndex(i,j)]);
+  		}
+  	}
 	printf("\n");
 }
 
 void setup() {
-	for(int i=0; i<NUM_CELLS_X; i++) {
-		flux[i] = 0.0;
-		if(i > 10 && i < 16) {
-			q[i] = 5.0;
-		} else {
-			q[i] = 0.0;
+	for (int i=0; i<NUM_CELLS_Y; i++) {
+  		for(int j=0; j<NUM_CELLS_X; j++) {
+  			int index = getIndex(i,j);
+  			assert(index >= 0);
+			assert(index < NUM_CELLS_X * NUM_CELLS_Y);
+  			if(index == 2*NUM_CELLS_X+2 || index == 2*NUM_CELLS_X+3 || index == 3*NUM_CELLS_X+2 || index == 3*NUM_CELLS_X+3) {
+  				q[index] = 2.0;
+  			} else {
+  				q[index] = 0.0;
+  			}
+  		}
+  	}
+	velocities[0] = 0.5;
+	velocities[1] = 0.5;
+	max_velocity = 0.0;
+	for(int i=0; i<sizeof(velocities)/sizeof(double); i++) {
+		if(velocities[i] > max_velocity) {
+			max_velocity = velocities[i];
 		}
 	}
 }
 
 void reconstruction() {
-	for(int i=1; i<NUM_CELLS_X; i++) { // Note that flux is not computed for the global boundary
-		flux[i] = ((q[i] + q[i-1]) / 2) - (X_VELOCITY/2 * (q[i] - q[i-1]));
+	for(int i=0; i<NUM_CELLS_Y; i++) {
+		for(int j=0; j<NUM_CELLS_X; j++) {
+			int index = getIndex(i,j);
+			assert(index >= 0);
+			assert(index < NUM_CELLS_X * NUM_CELLS_Y);
+			if(j != 0) {
+				flux_x[index] = ((q[index] + q[index-1]) / 2) - (max_velocity/2 * (q[index] - q[index-1]));
+			}
+			if(i != 0) {
+				flux_y[index] = ((q[index] + q[index-NUM_CELLS_X]) / 2) - (max_velocity/2 * (q[index] - q[index-NUM_CELLS_X]));
+			}
+		}
 	}
 }
 
 void update_cells() {
 	double temp;
-	for(int i=0; i<NUM_CELLS_X-1; i++) {
-		temp = q[i] + (TIMESTEP/DELTA_X) * (flux[i] - flux[i+1]);
-		if(temp < 0) {
-			q[i] = 0;
-		} else {
-			q[i] = temp;
+	for(int i=0; i<NUM_CELLS_Y-1; i++) {
+		for(int j=0; j<NUM_CELLS_X-1; j++) {
+			int index = getIndex(i,j);
+			assert(index >= 0);
+			assert(index < NUM_CELLS_X * NUM_CELLS_Y);
+			temp = q[index] + ((TIMESTEP/DELTA_X) * (flux_x[index] - flux_x[index+1])) + ((TIMESTEP/DELTA_Y) * (flux_y[index] - flux_y[index+NUM_CELLS_X]));
+			if(temp < 0) {
+				q[index] = 0;
+			} else {
+				q[index] = temp;
+			}
 		}
 	}
 }
