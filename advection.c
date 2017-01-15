@@ -1,7 +1,7 @@
 /* 
 	@author Jack Clark
 
-	Simple program to simulate 1D advection using the finite volume approach, with naive averaging at cell boundaries. 
+	Simple program to simulate 2D advection using the finite volume approach, with naive averaging at cell boundaries. 
 	
 	Compile with g++ -O3 advection.c -o advection
 */
@@ -94,11 +94,11 @@ void setup() {
 	velocities[0] = 0.5;
 	velocities[1] = 0.5;
 	max_velocity = 0.0;
-	for(int i=0; i<sizeof(velocities)/sizeof(double); i++) {
-		if(velocities[i] > max_velocity) {
-			max_velocity = velocities[i];
-		}
+	int i;
+	for(i = 0; i<sizeof(velocities)/sizeof(double); i++) {
+		max_velocity += velocities[i] * velocities[i];
 	}
+	max_velocity = sqrt(max_velocity);
 }
 
 void reconstruction() {
