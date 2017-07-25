@@ -1,0 +1,89 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <limits>
+#include <utility>
+#include <vector>
+
+#include "../../../../../../Peano/tarch/la/Vector.h"
+#include "../../../../KernelUtils.h"
+
+// TODO: Remove this kernel in the future. We will simply run solutionUpdate for
+// a given dt and then check inside the method whether dt is admissible.
+
+#if DIMENSIONS == 3
+
+namespace kernels {
+namespace finitevolumes {
+namespace muscl {
+namespace c {
+
+template <void PDEEigenvalues(const double* const Q, const int normalNonZero,
+                              double* lambda)>
+double stableTimeStepSize(double** luhCellwise,
+                          const tarch::la::Vector<DIMENSIONS, double>& dx,
+                          int numberOfVariables, int basisSize) {
+  const int basisSize2 = basisSize * basisSize;
+
+  double* luh = luhCellwise[13];
+  idx4 idx_luh(basisSize, basisSize, basisSize, numberOfVariables);
+
+  double dt_max_stable = std::numeric_limits<double>::max();
+  static const double EXAHYPE_CFL_FACTOR = 0.9;
+
+  double* lambda = new double[numberOfVariables];
+
+  for (int i = 0; i < basisSize; i++) {
+    for (int j = 0; j < basisSize; j++) {
+      for (int k = 0; k < basisSize; k++) {
+        // x
+        PDEEigenvalues(luh + idx_luh(i, j, k, 0), 0, lambda);
+        std::transform(lambda, lambda + numberOfVariables, lambda,
+                       std::abs<double>);
+        double s_max_x = *std::max_element(lambda, lambda + numberOfVariables);
+        dt_max_stable = std::min(
+            dt_max_stable, EXAHYPE_CFL_FACTOR / DIMENSIONS * (dx[0]/basisSize) / s_max_x);
+
+        // y
+        PDEEigenvalues(luh + idx_luh(i, j, k, 0), 1, lambda);
+        std::transform(lambda, lambda + numberOfVariables, lambda,
+                       std::abs<double>);
+        double s_max_y = *std::max_element(lambda, lambda + numberOfVariables);
+        dt_max_stable = std::min(
+            dt_max_stable, EXAHYPE_CFL_FACTOR / DIMENSIONS * (dx[1]/basisSize) / s_max_y);
+
+        // z
+        PDEEigenvalues(luh + idx_luh(i, j, k, 0), 2, lambda);
+        std::transform(lambda, lambda + numberOfVariables, lambda,
+                       std::abs<double>);
+        double s_max_z = *std::max_element(lambda, lambda + numberOfVariables);
+        dt_max_stable = std::min(
+            dt_max_stable, EXAHYPE_CFL_FACTOR / DIMENSIONS * (dx[2]/basisSize) / s_max_z);
+      }
+    }
+  }
+
+  delete[] lambda;
+
+  return dt_max_stable;
+}
+
+}  // namespace c
+}  // namespace muscl
+}  // namespace finitevolumes
+}  // namespace kernels
+
+#endif  // DIMENSIONS == 3

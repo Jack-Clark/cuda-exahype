@@ -1,0 +1,128 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+
+// included in ../../Kernels.h
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstring>
+
+#include "../../../../KernelUtils.h"
+
+namespace kernels {
+namespace aderdg {
+namespace generic {
+namespace c {
+
+template <typename SolverType>
+void riemannSolverNonlinear(SolverType& solver, double* FL, double* FR,
+                            const double* const QL,
+                            const double* const QR,
+                            double*  tempFaceUnknownsArray,
+                            double** tempStateSizedVectors,
+                            double** tempStateSizedSquareMatrices,
+                            const double dt,
+                            const int normalNonZero) {
+  const int numberOfVariables = solver.getNumberOfVariables();
+  const int numberOfParameters = solver.getNumberOfParameters();
+  const int basisSize = solver.getNodesPerCoordinateAxis();
+  const int order = basisSize - 1;
+
+  // Compute the average states (and parameters) from the left and the right
+  double* QavL = tempStateSizedVectors[0];
+  double* QavR = tempStateSizedVectors[1];
+  {
+    idx2 idx_QLR(basisSize, numberOfVariables);
+    std::memset(QavL, 0, numberOfVariables * sizeof(double));
+    std::memset(QavR, 0, numberOfVariables * sizeof(double));
+    for (int j = 0; j < basisSize; j++) {
+      const double weight = kernels::gaussLegendreWeights[order][j];
+
+      for (int k = 0; k < numberOfVariables; k++) {
+        QavL[k] += weight * QL[idx_QLR(j, k)];
+        QavR[k] += weight * QR[idx_QLR(j, k)];
+      }
+    }
+  }
+
+  double* LL = tempStateSizedVectors[2];
+  double* LR = tempStateSizedVectors[3];
+  solver.eigenvalues(QavL, normalNonZero, LL);
+  solver.eigenvalues(QavR, normalNonZero, LR);
+  
+  double* Qavg = tempStateSizedVectors[4];
+  for(int k=0; k < numberOfVariables; k++) {
+     Qavg[k] = (QavL[k] + QavR[k]) / 2;
+  }
+
+  // Here, we implement a very simple Rusanov scheme with scalar dissipation
+  // (smax*Id).
+  // We can change this into a more sophisticated Osher or HLLEM Riemann solver
+  // whenever needed!
+  std::transform(LL, LL + numberOfVariables - numberOfParameters, LL,
+                 std::abs<double>);
+  std::transform(LR, LR + numberOfVariables - numberOfParameters, LR,
+                 std::abs<double>);
+  const double* smax_L =
+      std::max_element(LL, LL + numberOfVariables - numberOfParameters);
+  const double* smax_R =
+      std::max_element(LR, LR + numberOfVariables - numberOfParameters);
+  const double smax = std::max(*smax_L, *smax_R);
+
+  double* Bn = new double[numberOfVariables * numberOfVariables]();
+  double* ncp = new double[numberOfVariables]();
+  idx2 idx_Bn(numberOfVariables, numberOfVariables);
+  solver.matrixb(Qavg, normalNonZero, Bn);
+
+  // We now compute the numerical flux. Note that the scheme is at the moment
+  // written in CONSERVATION FORM => no fluctuations, but real fluxes. Later,
+  // this will be converted into the left and right fluctuations.
+  
+  //printf("dt = %f\n", dt); // extract dt
+
+  {
+    idx2 idx_FQLR(basisSize, numberOfVariables);
+    for (int j = 0; j < basisSize; j++) {
+      // matmul(Bn, lQbndR(:,j,k) - lQbndL(:,j,k))
+      for(int l=0; l < numberOfVariables; l++) {
+	      ncp[l] = 0;
+	      for(int m=0; m < numberOfVariables; m++) {
+		     ncp[l] += Bn[idx_Bn(l, m)] * (QR[idx_FQLR(j, m)] - QL[idx_FQLR(j, m)]);
+	      }
+	     // printf("QR[%d, %d] = %.20e\n", j, l, QR[idx_FQLR(j, l)]);
+	     // printf("QL[%d, %d] = %.20e\n", j, l, QL[idx_FQLR(j, l)]);
+	     // printf("ncp[%d]=%.20e\n", l, ncp[l]);
+      }
+
+      // Avoid diffusion of parameters
+      for (int k = 0; k < numberOfVariables - numberOfParameters; k++) {
+        FL[idx_FQLR(j, k)] =
+            0.5 * (FR[idx_FQLR(j, k)] + FL[idx_FQLR(j, k)]) -
+            0.5 * smax * (QR[idx_FQLR(j, k)] - QL[idx_FQLR(j, k)]);
+        FR[idx_FQLR(j, k)] = FL[idx_FQLR(j, k)] - 0.5 * ncp[k];
+        FL[idx_FQLR(j, k)] = FL[idx_FQLR(j, k)] + 0.5 * ncp[k];
+        //if(0) printf("QL[..]-QR = %f - %f\n", QL[idx_FQLR(j, k)], QR[idx_FQLR(j, k)]);
+      }
+    }
+  }
+  
+//  delete[] Qavg;
+  delete[] Bn;
+  delete[] ncp;
+}
+
+}  // namespace c
+}  // namespace generic
+}  // namespace aderdg
+}  // namespace kernels

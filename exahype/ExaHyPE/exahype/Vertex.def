@@ -1,0 +1,9 @@
+#include "peano/utils/Globals.h"
+
+Packed-Type: int;
+
+Constant: TWO_POWER_D;
+
+class exahype::dastgen::Vertex {
+  expose persistent int CellDescriptionsIndex[TWO_POWER_D];
+};

@@ -1,0 +1,1 @@
+FSOURCES=(standard input) 

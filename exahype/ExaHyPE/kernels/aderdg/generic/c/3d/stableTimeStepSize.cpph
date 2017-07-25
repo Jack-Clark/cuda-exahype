@@ -1,0 +1,59 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon 
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+ 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+#include "tarch/la/Vector.h"
+
+#define EXAHYPE_CFL_FACTOR 0.9
+
+template <typename SolverType>
+double kernels::aderdg::generic::c::stableTimeStepSize(
+    SolverType& solver,
+    const double* const luh,
+    double* lambda,
+    const tarch::la::Vector<DIMENSIONS, double>& dx) {
+  const int numberOfVariables = solver.getNumberOfVariables();
+  const int basisSize = solver.getNodesPerCoordinateAxis();
+  const double PNPM[10] = {1.0,   0.33,  0.17, 0.1,  0.069,
+                           0.045, 0.038, 0.03, 0.02, 0.015};
+
+  double dt = std::numeric_limits<double>::max();
+
+  for (int ii = 0; ii < basisSize; ii++) {
+    for (int jj = 0; jj < basisSize; jj++) {
+      for (int kk = 0; kk < basisSize; kk++) {
+        const int nodeIndex = ii + basisSize * jj + basisSize * basisSize * kk;
+        const int dofStartIndex = nodeIndex * numberOfVariables;
+
+        double denominator = 0.0;
+        for (int d = 0; d < DIMENSIONS; d++) {
+          solver.eigenvalues(&luh[dofStartIndex], d, lambda);
+
+          double maxEigenvalue = 0.0;
+          for (int ivar = 0; ivar < numberOfVariables; ivar++) {
+            maxEigenvalue = std::max(fabs(lambda[ivar]), maxEigenvalue);
+          }
+          denominator += maxEigenvalue / dx[d];
+        }
+
+        dt = std::min(dt, EXAHYPE_CFL_FACTOR * PNPM[basisSize - 1] /
+                              denominator);  // order N = basisSize-1
+      }
+    }
+  }
+
+  return dt;
+}

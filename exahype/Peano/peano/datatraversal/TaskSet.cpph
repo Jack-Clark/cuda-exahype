@@ -1,0 +1,43 @@
+#include "tarch/Assertions.h"
+
+#include "peano/performanceanalysis/Analysis.h"
+
+
+template <class Functor>
+peano::datatraversal::TaskSet::TaskSet(
+  Functor&  myTask
+) {
+  peano::performanceanalysis::Analysis::getInstance().fireAndForgetBackgroundTask(1);
+
+  #if defined(SharedTBB)
+  typedef GenericTaskWithCopy<Functor> Task;
+
+  Task* tbbTask = new(tbb::task::allocate_root(_backgroundTaskContext)) Task(myTask);
+
+  tbb::task::enqueue(*tbbTask);
+  #elif defined(SharedOMP)
+    #warning @Vasco OpenMP Implementierung evtl. nicht mehr up-to-date
+    #pragma omp task shared(myTask)
+    {
+      Functor copyOfMyTask(myTask);
+      copyOfMyTask();
+    }
+  #else
+  myTask();
+  #endif
+}
+
+
+#ifdef SharedTBB
+template <class Functor>
+peano::datatraversal::TaskSet::GenericTaskWithCopy<Functor>::GenericTaskWithCopy(const Functor&  functor):
+  _functor(functor)  {
+}
+
+
+template <class Functor>
+tbb::task* peano::datatraversal::TaskSet::GenericTaskWithCopy<Functor>::execute() {
+  _functor();
+  return 0;
+}
+#endif

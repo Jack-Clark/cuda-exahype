@@ -1,0 +1,8 @@
+Packed-Type: int;
+
+class exahype::dastgen::Cell {
+  /**
+   * We specify a ADERDGCellDescription for each Solver that should run on the grid.
+   */
+  parallelise persistent int CellDescriptionsIndex;
+};

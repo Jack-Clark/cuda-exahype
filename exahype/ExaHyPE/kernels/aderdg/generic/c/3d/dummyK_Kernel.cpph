@@ -1,0 +1,38 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon 
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+ 
+
+template <typename SolverType>
+void kernels::aderdg::generic::c::dummyK_Kernel(
+    SolverType& solver,
+    const double t,
+    const double dt,
+    const tarch::la::Vector<DIMENSIONS, double>& center,
+    const tarch::la::Vector<DIMENSIONS, double>& dx,
+    const int numberOfVariables, 
+    const int numberOfParameters, 
+    const int basisSize,
+    double* pointForceSources //memory space for forceVector
+    ) { 
+
+    //TODO KD
+    
+    double x0[3];
+    
+    idx5 idx_pointForceSources(basisSize + 1, basisSize, basisSize, basisSize,
+               numberOfVariables);
+    //loop over all quadrature point
+      //do your stuff to get ready to get the value for one quadrature pointer
+      //solver.dummyK_Value(x, t, dt, &pointForceSources[idx_pointForceSources(0,ndof1,ndof2,ndof3,0)], &x0);
+      //apply the result for this quadrature point
+}

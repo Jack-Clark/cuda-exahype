@@ -1,0 +1,130 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+
+#include <algorithm>
+#include <cstring>
+
+#include "../../../../KernelUtils.h"
+
+namespace kernels {
+namespace aderdg {
+namespace generic {
+namespace c {
+
+template <typename SolverType>
+void riemannSolverLinear(SolverType& solver, double* FL, double* FR,
+                         const double* const QL, const double* const QR,
+                         double*  tempFaceUnknowns,
+                         double** tempStateSizedVectors,
+                         double** tempStateSizedSquareMatrices,
+                         const double dt,
+                         const int normalNonZero) {
+  const int numberOfVariables = solver.getNumberOfVariables();
+  const int numberOfParameters = solver.getNumberOfParameters();
+  const int basisSize = solver.getNodesPerCoordinateAxis();
+  const int order = basisSize - 1;
+
+  // Compute the average states (and parameters) from the left and the right
+  double* QavL = tempStateSizedVectors[0]; // size: numberOfVariables
+  double* QavR = tempStateSizedVectors[1]; // size: numberOfVariables
+  {
+    idx2 idx_QLR(basisSize, numberOfVariables);
+    std::memset(QavL, 0, numberOfVariables * sizeof(double));
+    std::memset(QavR, 0, numberOfVariables * sizeof(double));
+    for (int j = 0; j < basisSize; j++) {
+      const double weight = kernels::gaussLegendreWeights[order][j];
+
+      for (int k = 0; k < numberOfVariables; k++) {
+        QavL[k] += weight * QL[idx_QLR(j, k)];
+        QavR[k] += weight * QR[idx_QLR(j, k)];
+      }
+    }
+  }
+
+  // TODO: Size should be numberOfVariables - numberOfParameters
+  double* LL = tempStateSizedVectors[2]; // size: numberOfVariables
+  double* LR = tempStateSizedVectors[3]; // size: numberOfVariables
+  solver.eigenvalues(QavL, normalNonZero, LL);
+  solver.eigenvalues(QavR, normalNonZero, LR);
+
+  // Here, we implement a very simple Rusanov scheme with scalar dissipation
+  // (smax*Id).
+  // We can change this into a more sophisticated Osher or HLLEM Riemann solver
+  // whenever needed!
+  std::transform(LL, LL + numberOfVariables - numberOfParameters, LL,
+                 std::abs<double>);
+  std::transform(LR, LR + numberOfVariables - numberOfParameters, LR,
+                 std::abs<double>);
+  const double* smax_L =
+      std::max_element(LL, LL + numberOfVariables - numberOfParameters);
+  const double* smax_R =
+      std::max_element(LR, LR + numberOfVariables - numberOfParameters);
+  const double smax = std::max(*smax_L, *smax_R);
+
+  // We now compute the numerical flux. Note that the scheme is at the moment
+  // written in CONSERVATION FORM => no fluctuations, but real fluxes. Later,
+  // this will be converted into the left and right fluctuations.
+
+  // evaluate the system matrix just once in the averaged state
+  double* Qav = tempStateSizedVectors[4]; // size: numberOfVariables
+  // Qav = 0.5 * (QavL + QavR) (includes parameters)
+  std::transform(QavL, QavL + numberOfVariables, QavR, Qav,
+                 [](double a, double b) { return 0.5 * (a + b); });
+
+  double* Bn = tempStateSizedSquareMatrices[0]; // size: numberOfVariables * numberOfVariables
+  solver.matrixb(Qav, normalNonZero, Bn);
+
+  double* BnMinusIdSmax = tempStateSizedSquareMatrices[1]; // size: numberOfVariables * numberOfVariables
+  double* BnPlusIdSmax  = tempStateSizedSquareMatrices[2]; // size: numberOfVariables * numberOfVariables
+  std::memcpy(BnMinusIdSmax, Bn,
+              numberOfVariables * numberOfVariables * sizeof(double));
+  std::memcpy(BnPlusIdSmax, Bn,
+              numberOfVariables * numberOfVariables * sizeof(double));
+
+  {
+    idx2 idx_BnPM(numberOfVariables, numberOfVariables);
+    // Avoid diffusion of parameters
+    for (int i = 0; i < numberOfVariables - numberOfParameters; i++) {
+      BnMinusIdSmax[idx_BnPM(i, i)] -= smax;
+      BnPlusIdSmax[idx_BnPM(i, i)] += smax;
+    }
+  }
+
+  double* Q = tempFaceUnknowns; // size : basisSize * numberOfVariables
+  std::transform(QR, QR + basisSize * numberOfVariables, QL, Q,
+                 [](double a, double b) { return 0.5 * (a - b); });
+
+  std::memset(FL, 0, basisSize * numberOfVariables * sizeof(double));
+  std::memset(FR, 0, basisSize * numberOfVariables * sizeof(double));
+  {
+    idx2 idx_BnPM(numberOfVariables, numberOfVariables);
+    idx2 idx_QFLR(basisSize, numberOfVariables);
+    for (int i = 0; i < basisSize; i++) {
+      // FL(:,i) = 0.5 * (Bn - Id*smax)(:,:) * (QR(:,i) - QL(:,i))
+      // FR(:,i) = 0.5 * (Bn + Id*smax)(:,:) * (QR(:,i) - QL(:,i))
+      for (int j = 0; j < numberOfVariables - numberOfParameters; j++) {
+        for (int k = 0; k < numberOfVariables - numberOfParameters; k++) {
+          FL[idx_QFLR(i, j)] +=
+              BnMinusIdSmax[idx_BnPM(k, j)] * Q[idx_QFLR(i, k)];
+          FR[idx_QFLR(i, j)] +=
+              BnPlusIdSmax[idx_BnPM(k, j)] * Q[idx_QFLR(i, k)];
+        }
+      }
+    }
+  }
+}
+
+}  // namespace c
+}  // namespace generic
+}  // namespace aderdg
+}  // namespace kernels

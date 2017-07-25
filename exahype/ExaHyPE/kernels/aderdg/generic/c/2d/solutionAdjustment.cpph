@@ -1,0 +1,61 @@
+/**
+ * This file is part of the ExaHyPE project.
+ * Copyright (c) 2016  http://exahype.eu
+ * All rights reserved.
+ *
+ * The project has received funding from the European Union's Horizon 
+ * 2020 research and innovation programme under grant agreement
+ * No 671698. For copyrights and licensing, please consult the webpage.
+ *
+ * Released under the BSD 3 Open Source License.
+ * For the full license text, see LICENSE.txt
+ **/
+ 
+// #include "kernels/aderdg/generic/Kernels.h"
+
+// #include "string.h"
+
+// #include "tarch/la/Scalar.h"
+// #include "tarch/la/ScalarOperations.h"
+
+// #include "kernels/GaussLegendreQuadrature.h"
+// #include "kernels/DGMatrices.h"
+
+// #define EXAHYPE_CFL_FACTOR 0.9
+
+// #include <fstream>
+
+// using std::endl;
+// using std::cout;
+
+template <typename SolverType>
+void kernels::aderdg::generic::c::solutionAdjustment(
+    SolverType& solver,
+    double* luh, const tarch::la::Vector<DIMENSIONS, double>& center,
+    const tarch::la::Vector<DIMENSIONS, double>& dx, const double t,
+    const double dt) {
+  const int numberOfVariables = solver.getNumberOfVariables();
+  const int basisSize = solver.getNodesPerCoordinateAxis();
+  double x[2];
+
+  for (int ii = 0; ii < basisSize; ii++) {  // loop over dof
+    const double qr = kernels::gaussLegendreNodes[basisSize - 1][ii];
+
+    for (int jj = 0; jj < basisSize; jj++) {
+      // location and index of nodal degrees of freedom
+      const int nodeIndex = ii + basisSize * jj;
+
+      const double qs = kernels::gaussLegendreNodes[basisSize - 1][jj];
+      x[0] = center[0] + dx[0] * (qr - 0.5);
+      x[1] = center[1] + dx[1] * (qs - 0.5);
+
+      const double weight =  // Gauss weight
+          kernels::gaussLegendreWeights[basisSize - 1][ii] *
+          kernels::gaussLegendreWeights[basisSize - 1][jj];
+
+      // read initial condition
+      const int dofStartIndex = nodeIndex * numberOfVariables;
+      solver.adjustedSolutionValues(x, weight, t, dt, &luh[dofStartIndex]);
+    }
+  }
+}

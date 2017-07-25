@@ -1,0 +1,51 @@
+/**
+ 
+ @mainpage "ExaHyPE Sources"
+
+
+ <h1>ExaHyPE Source Code Documentation</h1>
+ 
+ <img src="http://www5.in.tum.de/exahype/exahype.png" />
+  
+ This directory holds the auto-generated documentation of the main ExaHyPE 
+ sources. 
+  
+ <h2> Run ExaHyPE </h2>
+ 
+ To start with a fresh version of ExaHyPE, run the following code
+ \code
+# unpack the grid generation framework Peano
+cd Code/Peano
+tar xvfz peano.tar.gz
+git checkout .gitignore
+cd ..
+
+# run toolkit for the generation of user applications
+java -jar Toolkit/dist/ExaHyPE.jar --not-interactive Applications/eulerflow2d.exahype
+
+# set build parameters
+export CC=gcc
+#export TBB_INC=/usr/include/tbb
+#export TBB_LIB=/usr/lib/tbb
+
+# build sample application
+cd Applications/eulerflow2d && make -j
+
+
+# run sample application
+
+./ExaHyPE-Euler2d ../eulerflow2d.exahype
+
+ \endcode
+ within the root directory of ExaHyPE.
+
+ <h2> Regenerate ExaHyPE's kernel gluecode </h2>
+ 
+ <pre>
+ java -jar ~/workspace/peano/pdt/pdt.jar --generate-gluecode exahype/exahype.specification exahype ~/workspace/peano/pdt/usrtemplates:../Peano/multiscalelinkedcell
+ </pre>
+ 
+ 
+ */
+ 
+ 

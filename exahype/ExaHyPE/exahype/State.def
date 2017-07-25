@@ -1,0 +1,203 @@
+Packed-Type: short int;
+
+class exahype::dastgen::State {    
+  #ifdef Parallel
+  enum GridConstructionState {
+    Default, Veto, Aggressive
+  };
+  
+  parallelise persistent GridConstructionState  gridConstructionState;
+  
+  /**
+   * Indicates if this is the first grid setup iteration.
+   * Then, we do not receive any metadata.
+   *
+   * TODO(Dominic): Having this in the State.def should be circumvented
+   */
+  parallelise persistent bool firstGridSetupIteration;
+  #endif
+  
+  /**
+   * This enum is used to specify
+   * which data we want to merge in the
+   * Merging mapping.
+   * 
+   * Note that we define sending and merging here 
+   * as operation between individual cells not
+   * just between subdomains belong to different threads
+   * or MPI processes.
+   * 
+   * For example, an ADER-DG solver might send
+   * data to its face data arrays or a neighbour rank's heap in one
+   * iteration.
+   * In the next iteration, the data is picked up and merrged by its 
+   * direct neighbour which might be a local cell
+   * or a cell belonging to another rank.
+   */
+  enum MergeMode {
+    /**
+     * Do not merge anything.
+     */
+    MergeNothing,
+
+    /**
+     * This is one of the modes
+     * for the standard time stepping
+     * algorithm.
+     *
+     * This mode should be set before
+     * performing the correction phase.
+     *
+     * Time step data exchange is
+     * a reduction-broadcast operation.
+     */
+    BroadcastAndMergeTimeStepData,
+    /**
+     * This is one of the modes
+     * for the standard time stepping
+     * algorithm.
+     *
+     * This mode should be set before
+     * performing the prediction phase.
+     *
+     * In principal, face data exchange is
+     * direct neighbour communication.
+     * However if we consider adaptive meshes,
+     * face data exchange also includes
+     * as master-worker and worker-master
+     * communication.
+     */
+    MergeFaceData,
+    /**
+     * This is the default mode if you use
+     * fused time stepping.
+     *
+     * In this case, we exchange
+     * time step as well as
+     * face data.
+     */
+    BroadcastAndMergeTimeStepDataAndMergeFaceData
+  };
+
+  parallelise persistent MergeMode mergeMode;
+
+  /**
+   * This enum is used to specify
+   * which data we want to send in the
+   * Sending mapping.
+   * 
+   * Note that we define sending and merging here 
+   * as operations between individual cells not
+   * just between subdomains belong to different threads
+   * or MPI processes. 
+   * 
+   * For example, an ADER-DG solver might send
+   * data to its face data arrays or a neighbour rank's heap in
+   * one iteration.
+   * In the next iteration, the data is picked up and merrged by its 
+   * direct neighbour which might be a local cell
+   * or a cell belonging to another rank.
+   */
+  enum SendMode {
+    /**
+     * Do not send anything.
+     */
+    SendNothing,
+
+    /**
+     * This is one of the modes
+     * for the standard time stepping
+     * algorithm.
+     *
+     * This mode should be set before
+     * performing the correction phase.
+     *
+     * Time step data exchange is
+     * a reduction-broadcast operation.
+     */
+    ReduceAndMergeTimeStepData,
+    /**
+     * This is one of the modes
+     * for the standard time stepping
+     * algorithm.
+     *
+     * This mode should be set before
+     * performing the prediction phase.
+     *
+     * In principal, face data exchange is
+     * direct neighbour communication.
+     * However if we consider adaptive meshes,
+     * face data exchange also includes
+     * as master-worker and worker-master
+     * communication.
+     */
+    SendFaceData,
+    /**
+     * Choose this mode if you use
+     * fused time stepping.
+     *
+     * In this case, we exchange
+     * time step as well as
+     * face data. We thus overlap the
+     * reduction-broadcast with
+     * the master-worker and
+     * worker-master communication.
+     */
+    ReduceAndMergeTimeStepDataAndSendFaceData
+  };
+  parallelise persistent SendMode sendMode;
+  
+  /**
+   * If this flag is set, the solvers
+   * are notified that they might need
+   * to reinitialise their time step sizes 
+   * and time stamps before a new time step
+   * is started.
+   * 
+   * This is usually the case if the
+   * mesh has been updated after the computation
+   * of the last solution. 
+   * 
+   * The ADER-DG solver, e.g., needs then to 
+   * overwrite the predictor time step size 
+   * of as well as the predictor time stamp
+   * before startNewTimeStep() is called for the solver
+   * since both will be used as corrector quantities in the next iteration.
+   */
+  persistent bool reinitTimeStepData;
+  
+  /**
+   * This flag indicates if at least one solver
+   * has performed a time step with an 
+   * instable (too large) time step size and
+   * thus needs to be recomputed.
+   * This can happen when we run the fused ADER-DG
+   * variant. 
+   * 
+   * Needs to be reset after the affected
+   * solvers have been rerun with a
+   * stable time step size.
+   * 
+   * <h2>MPI</h2>
+   * This flag does not need to be parallelised since
+   * we use it only for the global master rank.
+   */
+  persistent bool stabilityConditionOfOneSolverWasViolated;
+  
+  /**
+   * A factor in the range (0,1] that
+   * is used for reseting the time step sizes
+   * of an ADER-DG solver.
+   * 
+   * The reset corrector and predictor time step sizes
+   * are reset to a stable time step size times this factor. 
+   */
+  persistent double timeStepSizeWeightForPredictionRerun;
+  
+  /**
+   * This flag is used to notify the master thread or rank
+   * that the number of troubled cells has changed, i.e.,
+   * more or less cells need limiting.
+   */
+  parallelise persistent bool limiterDomainHasChanged;
+};

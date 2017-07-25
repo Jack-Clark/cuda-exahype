@@ -1,0 +1,48 @@
+#include "{{Solver}}.h"
+
+#include "tarch/la/ScalarOperations.h"
+
+{{Project}}::{{Solver}}::{{Solver}}(int cellsPerCoordinateAxis, double maximumMeshSize, exahype::solvers::Solver::TimeStepping timeStepping{{SolverConstructorSignatureExtension}}):
+  exahype::solvers::FiniteVolumesSolver("{{Solver}}", {{NumberOfVariables}}, {{NumberOfParameters}}, cellsPerCoordinateAxis, 1 /* ghost layer width */, maximumMeshSize, timeStepping{{SolverConstructorArgumentExtension}}) {
+  // @todo Please implement/augment if required
+}
+
+double {{Project}}::{{Solver}}::stableTimeStepSize(const double* const luh,double* tempEigenvalues,const tarch::la::Vector<DIMENSIONS,double>& dx) {
+  // @todo Please implement/augment if required
+  return std::numeric_limits<double>::max();
+}
+
+void {{Project}}::{{Solver}}::solutionUpdate(double* luhNew,const double* luh,double** tempStateSizedArrays,double** tempUnknowns,const tarch::la::Vector<DIMENSIONS, double>& dx,const double dt, double& maxAdmissibleDt) {
+  // @todo Please implement/augment if required
+  maxAdmissibleDt = std::numeric_limits<double>::max();
+}
+
+void {{Project}}::{{Solver}}::solutionAdjustment(double *luh,const tarch::la::Vector<DIMENSIONS,double>& center,const tarch::la::Vector<DIMENSIONS,double>& dx,const double t,const double dt) {
+  // @todo Please implement/augment if required
+}
+
+bool {{Project}}::{{Solver}}::hasToAdjustSolution(const tarch::la::Vector<DIMENSIONS, double>& center, const tarch::la::Vector<DIMENSIONS, double>& dx, const double t, const double dt) {
+  // @todo Please implement/augment if required
+  return tarch::la::equals(t,0.0);
+}
+
+void {{Project}}::{{Solver}}::ghostLayerFilling(double* luh,const double* luhNeighbour,const tarch::la::Vector<DIMENSIONS,int>& neighbourPosition) {
+  // @todo Please implement/augment if required
+}
+
+void {{Project}}::{{Solver}}::ghostLayerFillingAtBoundary(double* luh,const double* luhbnd,const tarch::la::Vector<DIMENSIONS,int>& boundaryPosition) {
+  // @todo Please implement/augment if required
+}
+
+void {{Project}}::{{Solver}}::boundaryLayerExtraction(double* luhbnd,const double* luh,const tarch::la::Vector<DIMENSIONS,int>& boundaryPosition) {
+  // @todo Please implement/augment if required
+}
+
+void {{Project}}::{{Solver}}::boundaryConditions(double* stateOut,const double* const stateIn,const tarch::la::Vector<DIMENSIONS, double>& cellCentre,const tarch::la::Vector<DIMENSIONS,double>& cellSize,const double t,const double dt,const int faceIndex,const int normalNonZero) {
+  // @todo Please implement/augment if required
+}
+
+exahype::solvers::Solver::RefinementControl {{Project}}::{{Solver}}::refinementCriterion(const double* luh, const tarch::la::Vector<DIMENSIONS, double>& center,const tarch::la::Vector<DIMENSIONS, double>& dx, double t,const int level) {
+  // @todo Please implement/augment if required
+  return exahype::solvers::Solver::RefinementControl::Keep;
+}
