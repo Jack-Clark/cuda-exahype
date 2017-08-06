@@ -14,3 +14,9 @@
 
 # Ignore any object files
 *.o
+
+# Make sure to include the main makefile
+!Makefile
+
+# Ignore makefiles in ./Demonstrators
+*/Demonstrators/*/Makefile
