@@ -16,6 +16,8 @@ NOTES:
 
 1. A lot of this code can be simplified in newer versions of ExaHyPE by accessing solverType class information rather than passing information by parameter.
 
-2. For some reason, with certain patch sizes the code gets a Finite volumes solver time step size harmed CFL condition warning. I'm not sure exactly what the reason for this is.
+2. For some reason, with certain patch sizes the code gets a Finite volume solver time step size harmed CFL condition warning. I'm not sure exactly what the reason for this is.
+
+3. The main findings from the project were that the current ExaHyPE threading model made it difficult to provide the GPU with enough work to do in order for the GPU version to be efficient. There was a suggestion that in order to make it work, a GPU manager could be created to intercept GPU offload requests and then forward them to the GPU. This has the advantage of abstracting away the details of GPU programming from most of the CPU code and also providing the possibility to make the offloading process efficient through keeping state on the GPUs across requests. This seemed particularly appealing for the multi-GPU case.
 
 
