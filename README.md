@@ -16,6 +16,6 @@ NOTES:
 
 1. A lot of this code can be simplified in newer versions of ExaHyPE by accessing solverType class information rather than passing information by parameter.
 
-2. For some reason, with certain patch sizes the code gets a Finite volumes solver time step size harmed CFL condition warning. I'm not sure exactly what the reason for this is, but I think it is likely to be an indexing issue. This doesn't affect the performance of the code, so it doesn't impact our results, but does impact the correctness of the final result. 
+2. For some reason, with certain patch sizes the code gets a Finite volumes solver time step size harmed CFL condition warning. I'm not sure exactly what the reason for this is.
 
 
